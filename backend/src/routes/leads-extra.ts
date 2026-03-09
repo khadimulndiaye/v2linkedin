@@ -36,16 +36,18 @@ async function scrapeLinkedInProfile(cookiesJson: string, profileUrl: string): P
     await page.goto(profileUrl.trim().replace(/\/$/, ''), { waitUntil: 'networkidle2', timeout: 20000 });
     await page.waitForSelector('h1', { timeout: 10000 }).catch(() => null);
 
-    // Runs in browser context - use plain JS only, no TS DOM types
-    const profile: ScrapedProfile = await page.evaluate(() => {
-      const t = (s: string) => ((document.querySelector(s) as any)?.innerText ?? '').trim();
+    // Pass as raw string so TypeScript never type-checks browser DOM code
+    const evalScript = `(() => {
+      const t = s => ((document.querySelector(s) || {}).innerText || '').trim();
       return {
-        name:     t('h1.text-heading-xlarge') || t('h1'),
+        name:     t('h1.text-heading-xlarge') || t('h1') || '',
         headline: t('.text-body-medium.break-words') || t('[data-field="headline"]') || '',
         location: t('.text-body-small.inline.t-black--light.break-words') || '',
         company:  t('.pv-text-details__right-panel .t-14.t-normal') || '',
       };
-    });
+    })()`;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const profile = await (page as any).evaluate(evalScript) as ScrapedProfile;
 
     logger.info(`Scraped: ${profile.name} @ ${profileUrl}`);
     return profile;
