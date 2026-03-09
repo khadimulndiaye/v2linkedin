@@ -23,24 +23,24 @@ export const useAuthStore = create<AuthState>((set) => ({
   login: async (email, password) => {
     set({ isLoading: true, error: null });
     try {
-      const response = await authApi.login(email, password);
-      localStorage.setItem('token', response.token);
-      set({ user: response.user, token: response.token, isAuthenticated: true, isLoading: false });
-    } catch (error) {
-      set({ error: (error as Error).message, isLoading: false });
-      throw error;
+      const { token, user } = await authApi.login(email, password);
+      localStorage.setItem('token', token);
+      set({ user, token, isAuthenticated: true, isLoading: false });
+    } catch (err) {
+      set({ error: (err as Error).message, isLoading: false });
+      throw err;
     }
   },
 
   register: async (email, password, name) => {
     set({ isLoading: true, error: null });
     try {
-      const response = await authApi.register(email, password, name);
-      localStorage.setItem('token', response.token);
-      set({ user: response.user, token: response.token, isAuthenticated: true, isLoading: false });
-    } catch (error) {
-      set({ error: (error as Error).message, isLoading: false });
-      throw error;
+      const { token, user } = await authApi.register(email, password, name);
+      localStorage.setItem('token', token);
+      set({ user, token, isAuthenticated: true, isLoading: false });
+    } catch (err) {
+      set({ error: (err as Error).message, isLoading: false });
+      throw err;
     }
   },
 
