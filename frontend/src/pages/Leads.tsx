@@ -356,7 +356,14 @@ export default function Leads() {
               <button onClick={() => setModal('none')} className="text-gray-400 hover:text-gray-600 text-xl leading-none">✕</button>
             </div>
 
-            {singleForm.error && <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4 text-sm">{singleForm.error}</div>}
+            {singleForm.error && (
+              singleForm.error.includes('Chrome') || singleForm.error.includes('Puppeteer') || singleForm.error.includes('puppeteer')
+                ? <div className="bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 rounded-lg mb-4 text-sm">
+                    <p className="font-semibold mb-1">⚠️ Auto-fetch unavailable</p>
+                    <p>Chrome is not installed on the server. Please fill in the fields manually below, or install Chrome via the Render build command.</p>
+                  </div>
+                : <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4 text-sm">{singleForm.error}</div>
+            )}
 
             <form onSubmit={handleSingleSubmit} className="space-y-4">
               {/* Account */}
@@ -405,9 +412,9 @@ export default function Leads() {
                   <button
                     type="button"
                     onClick={handleSingleFetch}
-                    disabled={!singleForm.linkedinUrl || !singleForm.accountId || singleForm.fetching}
-                    title={browserAccounts.length === 0 ? 'Requires a browser-mode account' : 'Auto-fetch profile data from LinkedIn'}
-                    className="px-3 py-2 bg-purple-600 text-white rounded-lg text-xs font-medium hover:bg-purple-700 disabled:opacity-40 whitespace-nowrap"
+                    disabled={!singleForm.linkedinUrl || !singleForm.accountId || singleForm.fetching || browserAccounts.length === 0}
+                    title={browserAccounts.length === 0 ? 'Requires a browser-mode account with Chrome on server' : 'Auto-fetch profile data from LinkedIn'}
+                    className="px-3 py-2 bg-purple-600 text-white rounded-lg text-xs font-medium hover:bg-purple-700 disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
                   >
                     {singleForm.fetching ? '⏳' : '✨ Fetch'}
                   </button>
