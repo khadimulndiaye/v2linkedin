@@ -15,169 +15,235 @@ async function fetchAPI<T>(endpoint: string, options: RequestInit = {}): Promise
   const response = await fetch(API_URL + endpoint, config);
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ message: 'Request failed' }));
-    throw new Error(error.message || 'Request failed');
+    const error = await response.json().catch(() => ({ error: 'Request failed' }));
+    throw new Error(error.error || error.message || 'Request failed');
   }
 
   return response.json();
 }
 
-// Auth API
+// ─── Auth ────────────────────────────────────────────────────────────────────
+
 export const authApi = {
   login: (email: string, password: string) =>
-    fetchAPI<{ token: string; user: { id: string; email: string; name: string } }>('/api/auth/login', {
+    fetchAPI<{ token: string; user: AuthUser }>('/api/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     }),
 
   register: (email: string, password: string, name: string) =>
-    fetchAPI<{ token: string; user: { id: string; email: string; name: string } }>('/api/auth/register', {
+    fetchAPI<{ token: string; user: AuthUser }>('/api/auth/register', {
       method: 'POST',
       body: JSON.stringify({ email, password, name }),
     }),
 
-  getProfile: () => fetchAPI<{ id: string; email: string; name: string }>('/api/auth/me'),
+  getProfile: () => fetchAPI<AuthUser>('/api/auth/me'),
 
   updateProfile: (data: { name?: string }) =>
-    fetchAPI<{ id: string; email: string; name: string }>('/api/auth/me', {
+    fetchAPI<AuthUser>('/api/auth/me', {
       method: 'PUT',
       body: JSON.stringify(data),
     }),
 };
 
-// Accounts API
+// ─── Accounts ────────────────────────────────────────────────────────────────
+
 export const accountsApi = {
   list: () => fetchAPI<Account[]>('/api/accounts'),
+
   get: (id: string) => fetchAPI<Account>('/api/accounts/' + id),
-  create: (data: { linkedinEmail: string; linkedinPassword?: string; name?: string }) =>
+
+  /** Backend schema: { email, profileUrl?, profileName? } */
+  create: (data: { email: string; profileName?: string; profileUrl?: string }) =>
     fetchAPI<Account>('/api/accounts', {
       method: 'POST',
-      body: JSON.stringify({ email: data.linkedinEmail, profileName: data.name }),
+      body: JSON.stringify(data),
     }),
-  update: (id: string, data: { name?: string; isActive?: boolean }) =>
+
+  /** Backend accepts: { profileUrl, profileName, status, dailyLimits } */
+  update: (id: string, data: { profileName?: string; profileUrl?: string; status?: string }) =>
     fetchAPI<Account>('/api/accounts/' + id, {
       method: 'PUT',
-      body: JSON.stringify({
-        profileName: data.name,
-        status: data.isActive === false ? 'inactive' : 'active',
-      }),
+      body: JSON.stringify(data),
     }),
+
   delete: (id: string) =>
-    fetchAPI<{ success: boolean }>('/api/accounts/' + id, { method: 'DELETE' }),
+    fetchAPI<{ success: boolean; message: string }>('/api/accounts/' + id, {
+      method: 'DELETE',
+    }),
 };
 
-// Campaigns API
+// ─── Campaigns ───────────────────────────────────────────────────────────────
+
 export const campaignsApi = {
-  list: (accountId?: string) =>
-    fetchAPI<Campaign[]>('/api/campaigns' + (accountId ? '?accountId=' + accountId : '')),
+  list: (filters?: { status?: string; type?: string }) => {
+    const params = new URLSearchParams();
+    if (filters?.status) params.append('status', filters.status);
+    if (filters?.type) params.append('type', filters.type);
+    const q = params.toString();
+    return fetchAPI<Campaign[]>('/api/campaigns' + (q ? '?' + q : ''));
+  },
+
   get: (id: string) => fetchAPI<Campaign>('/api/campaigns/' + id),
+
   create: (data: { name: string; type: string; accountId: string; settings?: object }) =>
     fetchAPI<Campaign>('/api/campaigns', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
+
   update: (id: string, data: { name?: string; status?: string; settings?: object }) =>
     fetchAPI<Campaign>('/api/campaigns/' + id, {
       method: 'PUT',
       body: JSON.stringify(data),
     }),
+
+  /** Backend has a dedicated PATCH toggle endpoint */
+  toggle: (id: string) =>
+    fetchAPI<Campaign>('/api/campaigns/' + id + '/toggle', { method: 'PATCH' }),
+
   delete: (id: string) =>
-    fetchAPI<{ success: boolean }>('/api/campaigns/' + id, { method: 'DELETE' }),
+    fetchAPI<{ success: boolean; message: string }>('/api/campaigns/' + id, {
+      method: 'DELETE',
+    }),
 };
 
-// Leads API
+// ─── Leads ───────────────────────────────────────────────────────────────────
+
 export const leadsApi = {
-  list: async (params?: { accountId?: string; status?: string }): Promise<Lead[]> => {
-    const searchParams = new URLSearchParams();
-    if (params?.accountId) searchParams.append('accountId', params.accountId);
-    if (params?.status) searchParams.append('status', params.status);
-    const query = searchParams.toString();
-    const result = await fetchAPI<{ leads: Lead[]; total: number } | Lead[]>(
-      '/api/leads' + (query ? '?' + query : '')
-    );
-    return Array.isArray(result) ? result : result.leads;
+  list: (params?: {
+    search?: string;
+    status?: string;
+    campaignId?: string;
+    page?: number;
+    limit?: number;
+  }): Promise<LeadsResponse> => {
+    const p = new URLSearchParams();
+    if (params?.search) p.append('search', params.search);
+    if (params?.status) p.append('status', params.status);
+    if (params?.campaignId) p.append('campaignId', params.campaignId);
+    if (params?.page) p.append('page', String(params.page));
+    if (params?.limit) p.append('limit', String(params.limit));
+    const q = p.toString();
+    return fetchAPI<LeadsResponse>('/api/leads' + (q ? '?' + q : ''));
   },
+
   get: (id: string) => fetchAPI<Lead>('/api/leads/' + id),
+
+  /** Backend requires: { linkedinUrl, name, accountId, campaignId?, headline?, company?, location? } */
   create: (data: {
     linkedinUrl: string;
+    name: string;
     accountId: string;
-    firstName?: string;
-    lastName?: string;
+    campaignId?: string;
+    headline?: string;
     company?: string;
-    title?: string;
+    location?: string;
   }) =>
     fetchAPI<Lead>('/api/leads', {
       method: 'POST',
-      body: JSON.stringify({
-        linkedinUrl: data.linkedinUrl,
-        accountId: data.accountId,
-        name: ((data.firstName || '') + ' ' + (data.lastName || '')).trim() || 'Unknown',
-        company: data.company,
-        headline: data.title,
-      }),
+      body: JSON.stringify(data),
     }),
+
   update: (id: string, data: { status?: string; notes?: string }) =>
     fetchAPI<Lead>('/api/leads/' + id, {
       method: 'PUT',
       body: JSON.stringify(data),
     }),
+
   delete: (id: string) =>
-    fetchAPI<{ success: boolean }>('/api/leads/' + id, { method: 'DELETE' }),
+    fetchAPI<{ success: boolean; message: string }>('/api/leads/' + id, {
+      method: 'DELETE',
+    }),
 };
 
-// AI API
+// ─── AI ──────────────────────────────────────────────────────────────────────
+
 export const aiApi = {
-  generate: (data: { prompt: string; type: string; provider?: string }) =>
+  /** type: 'post' | 'comment' | 'message' */
+  generate: (data: { prompt: string; type: 'post' | 'comment' | 'message' }) =>
     fetchAPI<{ content: string }>('/api/ai/generate', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
-  improve: (data: { content: string; instruction: string; provider?: string }) =>
-    fetchAPI<{ content: string }>('/api/ai/improve', {
+
+  /** No dedicated improve endpoint — wraps into generate with instruction prepended */
+  improve: (data: { content: string; instruction: string }): Promise<{ content: string }> => {
+    const prompt = data.instruction + '\n\nOriginal content:\n' + data.content;
+    return fetchAPI<{ content: string }>('/api/ai/generate', {
       method: 'POST',
-      body: JSON.stringify(data),
-    }),
-  ideas: (data: { topic: string; count?: number; provider?: string }) =>
+      body: JSON.stringify({ prompt, type: 'post' as const }),
+    });
+  },
+
+  ideas: (data: { topic: string; count?: number }) =>
     fetchAPI<{ ideas: string[] }>('/api/ai/ideas', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
 };
 
-// Types
-export interface Account {
+// ─── Types ───────────────────────────────────────────────────────────────────
+
+export interface AuthUser {
   id: string;
-  name?: string;
-  profileName?: string;
-  linkedinEmail?: string;
-  email?: string;
-  isActive?: boolean;
-  status?: string;
-  createdAt: string;
+  email: string;
+  name: string | null;
+  createdAt?: string;
 }
 
+/** Matches backend LinkedInAccount model */
+export interface Account {
+  id: string;
+  userId?: string;
+  email: string;
+  profileUrl?: string | null;
+  profileName?: string | null;
+  status: string;
+  dailyLimits?: object;
+  createdAt: string;
+  updatedAt?: string;
+  _count?: { campaigns: number; leads: number };
+}
+
+/** Matches backend Campaign model */
 export interface Campaign {
   id: string;
+  userId?: string;
+  accountId: string;
   name: string;
   type: string;
   status: string;
-  accountId: string;
   settings: object;
   createdAt: string;
+  updatedAt?: string;
+  account?: { email: string; profileName?: string | null };
+  _count?: { leads: number };
 }
 
+/** Matches backend Lead model */
 export interface Lead {
   id: string;
-  linkedinUrl: string;
-  name?: string;
-  firstName?: string;
-  lastName?: string;
-  email?: string;
-  company?: string;
-  title?: string;
-  headline?: string;
-  status: string;
-  notes?: string;
+  userId?: string;
   accountId: string;
+  campaignId?: string | null;
+  linkedinUrl: string;
+  name: string;
+  headline?: string | null;
+  company?: string | null;
+  location?: string | null;
+  status: string;
+  notes?: string | null;
   createdAt: string;
+  updatedAt?: string;
+  campaign?: { name: string } | null;
+  account?: { email: string } | null;
+}
+
+export interface LeadsResponse {
+  leads: Lead[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
 }

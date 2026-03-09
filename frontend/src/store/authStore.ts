@@ -1,14 +1,8 @@
 import { create } from 'zustand';
-import { authApi } from '../lib/api';
-
-interface User {
-  id: string;
-  email: string;
-  name: string;
-}
+import { authApi, AuthUser } from '../lib/api';
 
 interface AuthState {
-  user: User | null;
+  user: AuthUser | null;
   token: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
@@ -26,7 +20,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   isLoading: false,
   error: null,
 
-  login: async (email: string, password: string) => {
+  login: async (email, password) => {
     set({ isLoading: true, error: null });
     try {
       const response = await authApi.login(email, password);
@@ -38,7 +32,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     }
   },
 
-  register: async (email: string, password: string, name: string) => {
+  register: async (email, password, name) => {
     set({ isLoading: true, error: null });
     try {
       const response = await authApi.register(email, password, name);

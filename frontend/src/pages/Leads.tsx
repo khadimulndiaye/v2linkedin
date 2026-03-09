@@ -1,36 +1,45 @@
 import { useEffect, useState } from 'react';
 import { leadsApi, accountsApi, Lead, Account } from '../lib/api';
 
+const STATUS_OPTIONS = ['new', 'contacted', 'messaged'];
+
 export default function Leads() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     linkedinUrl: '',
     accountId: '',
-    firstName: '',
-    lastName: '',
+    name: '',
+    headline: '',
     company: '',
-    title: '',
+    location: '',
   });
   const [error, setError] = useState('');
-  const [filter, setFilter] = useState({ accountId: '', status: '' });
+  const [filter, setFilter] = useState({ status: '', search: '' });
 
   useEffect(() => {
     loadData();
   }, [filter]);
 
   const loadData = async () => {
+    setLoading(true);
     try {
-      const [leadsData, accountsData] = await Promise.all([
-        leadsApi.list(filter.accountId || filter.status ? filter : undefined),
+      const [leadsResponse, accountsData] = await Promise.all([
+        leadsApi.list({
+          status: filter.status || undefined,
+          search: filter.search || undefined,
+        }),
         accountsApi.list(),
       ]);
-      setLeads(leadsData);
+      setLeads(leadsResponse.leads);
+      setTotal(leadsResponse.total);
       setAccounts(accountsData);
-    } catch (error) {
-      console.error('Failed to load data:', error);
+    } catch (err) {
+      console.error('Failed to load data:', err);
     } finally {
       setLoading(false);
     }
@@ -39,13 +48,23 @@ export default function Leads() {
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setSubmitting(true);
     try {
-      await leadsApi.create(formData);
+      await leadsApi.create({
+        linkedinUrl: formData.linkedinUrl,
+        name: formData.name,
+        accountId: formData.accountId,
+        headline: formData.headline || undefined,
+        company: formData.company || undefined,
+        location: formData.location || undefined,
+      });
       setShowModal(false);
-      setFormData({ linkedinUrl: '', accountId: '', firstName: '', lastName: '', company: '', title: '' });
-      loadData();
+      setFormData({ linkedinUrl: '', accountId: '', name: '', headline: '', company: '', location: '' });
+      await loadData();
     } catch (err) {
       setError((err as Error).message);
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -53,69 +72,79 @@ export default function Leads() {
     if (!confirm('Are you sure you want to delete this lead?')) return;
     try {
       await leadsApi.delete(id);
-      loadData();
-    } catch (error) {
-      console.error('Failed to delete lead:', error);
+      await loadData();
+    } catch (err) {
+      console.error('Failed to delete lead:', err);
     }
   };
 
   const handleStatusChange = async (id: string, status: string) => {
     try {
       await leadsApi.update(id, { status });
-      loadData();
-    } catch (error) {
-      console.error('Failed to update lead:', error);
+      await loadData();
+    } catch (err) {
+      console.error('Failed to update lead:', err);
     }
   };
-
-  const statusOptions = ['new', 'contacted', 'connected', 'replied', 'qualified', 'converted'];
-
-  if (loading) {
-    return <div className="text-center py-8">Loading...</div>;
-  }
 
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Leads</h1>
+        <div>
+          <h1 className="text-2xl font-bold">Leads</h1>
+          {total > 0 && <p className="text-gray-500 text-sm">{total} total</p>}
+        </div>
         <button
           onClick={() => setShowModal(true)}
-          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
           disabled={accounts.length === 0}
+          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           + Add Lead
         </button>
       </div>
 
-      {/* Filters */}
-      <div className="bg-white rounded-lg shadow p-4 mb-6">
-        <div className="flex space-x-4">
-          <select
-            value={filter.accountId}
-            onChange={(e) => setFilter({ ...filter, accountId: e.target.value })}
-            className="px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
-          >
-            <option value="">All Accounts</option>
-            {accounts.map((account) => (
-              <option key={account.id} value={account.id}>
-                {account.name || account.linkedinEmail}
-              </option>
-            ))}
-          </select>
-          <select
-            value={filter.status}
-            onChange={(e) => setFilter({ ...filter, status: e.target.value })}
-            className="px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
-          >
-            <option value="">All Statuses</option>
-            {statusOptions.map((status) => (
-              <option key={status} value={status}>{status}</option>
-            ))}
-          </select>
+      {accounts.length === 0 && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+          <p className="text-yellow-800 text-sm">
+            Please add a LinkedIn account first before adding leads.
+          </p>
         </div>
+      )}
+
+      {/* Filters */}
+      <div className="bg-white rounded-lg shadow p-4 mb-6 flex flex-wrap gap-3">
+        <input
+          type="text"
+          placeholder="Search name, company, headline..."
+          value={filter.search}
+          onChange={(e) => setFilter({ ...filter, search: e.target.value })}
+          className="px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500 flex-1 min-w-48"
+        />
+        <select
+          value={filter.status}
+          onChange={(e) => setFilter({ ...filter, status: e.target.value })}
+          className="px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+        >
+          <option value="">All Statuses</option>
+          {STATUS_OPTIONS.map((s) => (
+            <option key={s} value={s}>{s}</option>
+          ))}
+        </select>
+        {(filter.search || filter.status) && (
+          <button
+            onClick={() => setFilter({ status: '', search: '' })}
+            className="px-3 py-2 text-gray-500 hover:text-gray-700 text-sm"
+          >
+            Clear
+          </button>
+        )}
       </div>
 
-      {leads.length === 0 ? (
+      {loading ? (
+        <div className="flex items-center justify-center py-16">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+        </div>
+      ) : leads.length === 0 ? (
         <div className="bg-white rounded-lg shadow p-8 text-center">
           <p className="text-gray-500 mb-4">No leads found</p>
           {accounts.length > 0 && (
@@ -132,44 +161,58 @@ export default function Leads() {
           <table className="w-full">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Company</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Title</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Name
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Headline
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Company
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Status
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
               {leads.map((lead) => (
-                <tr key={lead.id}>
+                <tr key={lead.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="font-medium">{lead.firstName} {lead.lastName}</div>
-                    <a 
-                      href={lead.linkedinUrl} 
-                      target="_blank" 
+                    <div className="font-medium">{lead.name}</div>
+                    <a
+                      href={lead.linkedinUrl}
+                      target="_blank"
                       rel="noopener noreferrer"
-                      className="text-blue-600 text-sm hover:underline"
+                      className="text-blue-600 text-xs hover:underline"
                     >
-                      View Profile
+                      LinkedIn Profile ↗
                     </a>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-gray-500">{lead.company || '-'}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-gray-500">{lead.title || '-'}</td>
+                  <td className="px-6 py-4 text-gray-500 text-sm max-w-xs truncate">
+                    {lead.headline || '—'}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-gray-500 text-sm">
+                    {lead.company || '—'}
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <select
                       value={lead.status}
                       onChange={(e) => handleStatusChange(lead.id, e.target.value)}
-                      className="px-2 py-1 border border-gray-300 rounded text-sm"
+                      className="px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:border-blue-500"
                     >
-                      {statusOptions.map((status) => (
-                        <option key={status} value={status}>{status}</option>
+                      {STATUS_OPTIONS.map((s) => (
+                        <option key={s} value={s}>{s}</option>
                       ))}
                     </select>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <button
                       onClick={() => handleDelete(lead.id)}
-                      className="text-red-600 hover:text-red-800"
+                      className="text-red-600 hover:text-red-800 text-sm"
                     >
                       Delete
                     </button>
@@ -184,18 +227,20 @@ export default function Leads() {
       {/* Add Lead Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md shadow-xl max-h-screen overflow-y-auto">
             <h2 className="text-xl font-bold mb-4">Add Lead</h2>
-            
+
             {error && (
-              <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+              <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4 text-sm">
                 {error}
               </div>
             )}
 
             <form onSubmit={handleCreate}>
               <div className="mb-4">
-                <label className="block text-gray-700 text-sm font-bold mb-2">LinkedIn URL</label>
+                <label className="block text-gray-700 text-sm font-bold mb-2">
+                  LinkedIn URL <span className="text-red-500">*</span>
+                </label>
                 <input
                   type="url"
                   value={formData.linkedinUrl}
@@ -207,7 +252,23 @@ export default function Leads() {
               </div>
 
               <div className="mb-4">
-                <label className="block text-gray-700 text-sm font-bold mb-2">LinkedIn Account</label>
+                <label className="block text-gray-700 text-sm font-bold mb-2">
+                  Full Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                  placeholder="Jane Doe"
+                  required
+                />
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-gray-700 text-sm font-bold mb-2">
+                  LinkedIn Account <span className="text-red-500">*</span>
+                </label>
                 <select
                   value={formData.accountId}
                   onChange={(e) => setFormData({ ...formData, accountId: e.target.value })}
@@ -217,31 +278,21 @@ export default function Leads() {
                   <option value="">Select an account</option>
                   {accounts.map((account) => (
                     <option key={account.id} value={account.id}>
-                      {account.name || account.linkedinEmail}
+                      {account.profileName || account.email}
                     </option>
                   ))}
                 </select>
               </div>
 
-              <div className="grid grid-cols-2 gap-4 mb-4">
-                <div>
-                  <label className="block text-gray-700 text-sm font-bold mb-2">First Name</label>
-                  <input
-                    type="text"
-                    value={formData.firstName}
-                    onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-gray-700 text-sm font-bold mb-2">Last Name</label>
-                  <input
-                    type="text"
-                    value={formData.lastName}
-                    onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
-                  />
-                </div>
+              <div className="mb-4">
+                <label className="block text-gray-700 text-sm font-bold mb-2">Headline</label>
+                <input
+                  type="text"
+                  value={formData.headline}
+                  onChange={(e) => setFormData({ ...formData, headline: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                  placeholder="e.g., Senior Engineer at Acme"
+                />
               </div>
 
               <div className="mb-4">
@@ -255,11 +306,11 @@ export default function Leads() {
               </div>
 
               <div className="mb-6">
-                <label className="block text-gray-700 text-sm font-bold mb-2">Job Title</label>
+                <label className="block text-gray-700 text-sm font-bold mb-2">Location</label>
                 <input
                   type="text"
-                  value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                  value={formData.location}
+                  onChange={(e) => setFormData({ ...formData, location: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
                 />
               </div>
@@ -267,16 +318,17 @@ export default function Leads() {
               <div className="flex justify-end space-x-3">
                 <button
                   type="button"
-                  onClick={() => setShowModal(false)}
+                  onClick={() => { setShowModal(false); setError(''); }}
                   className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-50"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                  disabled={submitting}
+                  className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
                 >
-                  Add Lead
+                  {submitting ? 'Adding...' : 'Add Lead'}
                 </button>
               </div>
             </form>
