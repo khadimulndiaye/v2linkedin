@@ -3,6 +3,11 @@ import { logger } from '../utils/logger';
 
 type ContentType = 'post' | 'comment' | 'message';
 
+interface APIErrorResponse {
+  error?: { message?: string };
+  message?: string;
+}
+
 export class AIService {
   private provider: 'openai' | 'gemini' | 'deepseek' | 'none';
 
@@ -38,11 +43,13 @@ export class AIService {
     });
 
     if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
+      const err = await res.json().catch(() => ({})) as APIErrorResponse;
       throw new Error(`OpenAI error: ${err?.error?.message ?? res.statusText}`);
     }
 
-    const data = await res.json();
+    const data = await res.json() as {
+      choices: Array<{ message: { content: string } }>;
+    };
     return data.choices[0]?.message?.content?.trim() ?? '';
   }
 
@@ -62,11 +69,13 @@ export class AIService {
     });
 
     if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
+      const err = await res.json().catch(() => ({})) as APIErrorResponse;
       throw new Error(`Gemini error: ${err?.error?.message ?? res.statusText}`);
     }
 
-    const data = await res.json();
+    const data = await res.json() as {
+      candidates: Array<{ content: { parts: Array<{ text: string }> } }>;
+    };
     return data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? '';
   }
 
@@ -88,11 +97,13 @@ export class AIService {
     });
 
     if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
+      const err = await res.json().catch(() => ({})) as APIErrorResponse;
       throw new Error(`DeepSeek error: ${err?.error?.message ?? res.statusText}`);
     }
 
-    const data = await res.json();
+    const data = await res.json() as {
+      choices: Array<{ message: { content: string } }>;
+    };
     return data.choices?.[0]?.message?.content?.trim() ?? '';
   }
 
@@ -160,22 +171,21 @@ Example format: ["Idea one", "Idea two"]`;
     const raw = await this.call(prompt);
 
     try {
-      // Strip possible markdown code fences
       const cleaned = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
-      const parsed = JSON.parse(cleaned);
+      const parsed = JSON.parse(cleaned) as unknown[];
       if (Array.isArray(parsed) && parsed.length > 0) {
         return parsed.slice(0, count).map(String);
       }
     } catch {
-      // Fallback: split by newlines and clean up
+      // Fallback: split by newlines
       const lines = raw
         .split('\n')
-        .map((l) => l.replace(/^[\d\-\*\.\s"]+/, '').replace(/[",\]]+$/, '').trim())
+        .map((l) => l.replace(/^[\d\-*.\s"]+/, '').replace(/[",\]]+$/, '').trim())
         .filter((l) => l.length > 10);
       if (lines.length > 0) return lines.slice(0, count);
     }
 
-    throw new Error('AI returned an unexpected format for post ideas. Please try again.');
+    throw new Error('AI returned an unexpected format. Please try again.');
   }
 }
 
