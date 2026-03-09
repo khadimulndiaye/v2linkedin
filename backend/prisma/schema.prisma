@@ -14,7 +14,7 @@ model User {
   name      String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
+
   accounts  LinkedInAccount[]
   campaigns Campaign[]
   leads     Lead[]
@@ -24,16 +24,32 @@ model LinkedInAccount {
   id           String   @id @default(cuid())
   userId       String
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Core info
   email        String
   profileUrl   String?
   profileName  String?
   status       String   @default("active")
+
+  // Connection mode: "manual" | "oauth" | "browser"
+  connectionMode String @default("manual")
+
+  // OAuth fields (Option A)
+  oauthAccessToken  String?
+  oauthRefreshToken String?
+  oauthExpiresAt    DateTime?
+  oauthLinkedInId   String?
+
+  // Browser automation fields (Option B)
+  passwordEncrypted String?
+
   dailyLimits  Json     @default("{}")
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
   campaigns Campaign[]
   leads     Lead[]
+  posts     ScheduledPost[]
 }
 
 model Campaign {
@@ -69,4 +85,18 @@ model Lead {
   notes        String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+}
+
+model ScheduledPost {
+  id          String   @id @default(cuid())
+  accountId   String
+  account     LinkedInAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  content     String
+  status      String   @default("draft")  // draft | scheduled | published | failed
+  scheduledAt DateTime?
+  publishedAt DateTime?
+  linkedinPostId String?
+  errorMessage   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
