@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { accountsApi, linkedinApi, aiApi, Account, ScheduledPost } from '../lib/api';
 
 const STATUS_COLORS: Record<string, string> = {
@@ -17,8 +18,10 @@ export default function Posts() {
   const [success,  setSuccess]  = useState('');
   const [aiLoading, setAiLoading] = useState(false);
 
+  const [searchParams] = useSearchParams();
+
   const [form, setForm] = useState({
-    accountId:   '',
+    accountId:   searchParams.get('accountId') || '',
     content:     '',
     scheduledAt: '',
     scheduleNow: true,

@@ -7,36 +7,40 @@ import Dashboard from './pages/Dashboard';
 import Accounts from './pages/Accounts';
 import Campaigns from './pages/Campaigns';
 import Leads from './pages/Leads';
+import Posts from './pages/Posts';
 import AIContent from './pages/AIContent';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  return isAuthenticated ? <>{children}</> : <Navigate to="/login" />;
+  const { token } = useAuthStore();
+  return token ? <>{children}</> : <Navigate to="/login" replace />;
 }
 
-function App() {
+export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/login" element={<Login />} />
+        <Route path="/login"    element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route
-          path="/"
+          path="/*"
           element={
             <PrivateRoute>
-              <Layout />
+              <Layout>
+                <Routes>
+                  <Route path="/dashboard"  element={<Dashboard />} />
+                  <Route path="/accounts"   element={<Accounts />} />
+                  <Route path="/campaigns"  element={<Campaigns />} />
+                  <Route path="/leads"      element={<Leads />} />
+                  <Route path="/posts"      element={<Posts />} />
+                  <Route path="/ai-content" element={<AIContent />} />
+                  <Route path="/"           element={<Navigate to="/dashboard" replace />} />
+                  <Route path="*"           element={<Navigate to="/dashboard" replace />} />
+                </Routes>
+              </Layout>
             </PrivateRoute>
           }
-        >
-          <Route index element={<Dashboard />} />
-          <Route path="accounts" element={<Accounts />} />
-          <Route path="campaigns" element={<Campaigns />} />
-          <Route path="leads" element={<Leads />} />
-          <Route path="ai" element={<AIContent />} />
-        </Route>
+        />
       </Routes>
     </BrowserRouter>
   );
 }
-
-export default App;
