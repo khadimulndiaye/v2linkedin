@@ -11,6 +11,7 @@ import aiRoutes       from './routes/ai';
 import oauthRoutes      from './routes/oauth';
 import linkedinRoutes   from './routes/linkedin';
 import campaignRunRoutes from './routes/campaign-run';
+import leadsExtraRoutes  from './routes/leads-extra';
 
 const app = express();
 
@@ -52,6 +53,7 @@ app.use('/api/ai',       aiRoutes);
 app.use('/api/oauth',            oauthRoutes);
 app.use('/api/linkedin',         linkedinRoutes);
 app.use('/api/campaigns',        campaignRunRoutes);
+app.use('/api/leads',            leadsExtraRoutes);
 
 app.use(errorHandler);
 

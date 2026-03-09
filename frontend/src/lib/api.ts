@@ -122,6 +122,17 @@ export const leadsApi = {
     fetchAPI<Lead>('/api/leads/' + id, { method: 'PUT', body: JSON.stringify(data) }),
   delete: (id: string) =>
     fetchAPI<{ success: boolean }>('/api/leads/' + id, { method: 'DELETE' }),
+  scrapeProfile: (profileUrl: string, accountId: string) =>
+    fetchAPI<{ name: string; headline: string; company: string; location: string }>(
+      '/api/leads/scrape-profile', { method: 'POST', body: JSON.stringify({ profileUrl, accountId }) }
+    ),
+  batch: (data: {
+    accountId: string;
+    campaignId?: string;
+    leads: { linkedinUrl: string; name: string; headline?: string; company?: string; location?: string }[];
+  }) => fetchAPI<{ created: number; skipped: number; message: string }>(
+    '/api/leads/batch', { method: 'POST', body: JSON.stringify(data) }
+  ),
 };
 
 // ─── AI ──────────────────────────────────────────────────────────────────────
