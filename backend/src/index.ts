@@ -8,8 +8,9 @@ import accountRoutes  from './routes/accounts';
 import campaignRoutes from './routes/campaigns';
 import leadRoutes     from './routes/leads';
 import aiRoutes       from './routes/ai';
-import oauthRoutes    from './routes/oauth';
-import linkedinRoutes from './routes/linkedin';
+import oauthRoutes      from './routes/oauth';
+import linkedinRoutes   from './routes/linkedin';
+import campaignRunRoutes from './routes/campaign-run';
 
 const app = express();
 
@@ -48,8 +49,9 @@ app.use('/api/accounts', accountRoutes);
 app.use('/api/campaigns',campaignRoutes);
 app.use('/api/leads',    leadRoutes);
 app.use('/api/ai',       aiRoutes);
-app.use('/api/oauth',    oauthRoutes);
-app.use('/api/linkedin', linkedinRoutes);
+app.use('/api/oauth',            oauthRoutes);
+app.use('/api/linkedin',         linkedinRoutes);
+app.use('/api/campaigns',        campaignRunRoutes);
 
 app.use(errorHandler);
 

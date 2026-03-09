@@ -9,6 +9,7 @@ import Campaigns from './pages/Campaigns';
 import Leads from './pages/Leads';
 import Posts from './pages/Posts';
 import AIContent from './pages/AIContent';
+import CampaignRun from './pages/CampaignRun';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { token } = useAuthStore();
@@ -33,6 +34,7 @@ export default function App() {
                   <Route path="/leads"      element={<Leads />} />
                   <Route path="/posts"      element={<Posts />} />
                   <Route path="/ai-content" element={<AIContent />} />
+                  <Route path="/campaigns/:id/run" element={<CampaignRun />} />
                   <Route path="/"           element={<Navigate to="/dashboard" replace />} />
                   <Route path="*"           element={<Navigate to="/dashboard" replace />} />
                 </Routes>

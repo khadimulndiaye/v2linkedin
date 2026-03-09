@@ -147,6 +147,14 @@ export default function Campaigns() {
                       {campaign.status}
                     </span>
 
+                    {/* Run campaign */}
+                    <Link
+                      to={`/campaigns/${campaign.id}/run`}
+                      className="px-3 py-1 bg-green-600 text-white rounded-lg text-xs hover:bg-green-700 font-medium"
+                    >
+                      ▶ Run
+                    </Link>
+
                     {/* Add leads to this campaign */}
                     <Link
                       to={`/leads?campaignId=${campaign.id}`}
