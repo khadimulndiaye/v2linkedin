@@ -57,7 +57,10 @@ export const accountsApi = {
   update: (id: string, data: { name?: string; isActive?: boolean }) =>
     fetchAPI<Account>('/api/accounts/' + id, {
       method: 'PUT',
-      body: JSON.stringify({ profileName: data.name, status: data.isActive === false ? 'inactive' : 'active' }),
+      body: JSON.stringify({
+        profileName: data.name,
+        status: data.isActive === false ? 'inactive' : 'active',
+      }),
     }),
   delete: (id: string) =>
     fetchAPI<{ success: boolean }>('/api/accounts/' + id, { method: 'DELETE' }),
@@ -84,12 +87,15 @@ export const campaignsApi = {
 
 // Leads API
 export const leadsApi = {
-  list: (params?: { accountId?: string; status?: string }) => {
+  list: async (params?: { accountId?: string; status?: string }): Promise<Lead[]> => {
     const searchParams = new URLSearchParams();
     if (params?.accountId) searchParams.append('accountId', params.accountId);
     if (params?.status) searchParams.append('status', params.status);
     const query = searchParams.toString();
-    return fetchAPI<{ leads: Lead[]; total: number } | Lead[]>('/api/leads' + (query ? '?' + query : ''));
+    const result = await fetchAPI<{ leads: Lead[]; total: number } | Lead[]>(
+      '/api/leads' + (query ? '?' + query : '')
+    );
+    return Array.isArray(result) ? result : result.leads;
   },
   get: (id: string) => fetchAPI<Lead>('/api/leads/' + id),
   create: (data: {
@@ -105,7 +111,7 @@ export const leadsApi = {
       body: JSON.stringify({
         linkedinUrl: data.linkedinUrl,
         accountId: data.accountId,
-        name: (data.firstName || '') + ' ' + (data.lastName || ''),
+        name: ((data.firstName || '') + ' ' + (data.lastName || '')).trim() || 'Unknown',
         company: data.company,
         headline: data.title,
       }),

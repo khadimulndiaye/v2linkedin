@@ -46,13 +46,18 @@ export default function Accounts() {
     }
   };
 
-  const handleToggle = async (id: string, isActive: boolean) => {
+  const handleToggle = async (id: string, currentIsActive: boolean) => {
     try {
-      await accountsApi.update(id, { isActive: !isActive });
+      await accountsApi.update(id, { isActive: !currentIsActive });
       loadAccounts();
     } catch (error) {
       console.error('Failed to toggle account:', error);
     }
+  };
+
+  const isAccountActive = (account: Account): boolean => {
+    if (account.isActive !== undefined) return account.isActive;
+    return account.status !== 'inactive';
   };
 
   if (loading) {
@@ -93,30 +98,37 @@ export default function Accounts() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {accounts.map((account) => (
-                <tr key={account.id}>
-                  <td className="px-6 py-4 whitespace-nowrap font-medium">{account.name || 'Unnamed'}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-gray-500">{account.linkedinEmail}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <button
-                      onClick={() => handleToggle(account.id, account.isActive)}
-                      className={'px-3 py-1 rounded text-sm ' +
-                        (account.isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800')
-                      }
-                    >
-                      {account.isActive ? 'Active' : 'Inactive'}
-                    </button>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <button
-                      onClick={() => handleDelete(account.id)}
-                      className="text-red-600 hover:text-red-800"
-                    >
-                      Delete
-                    </button>
-                  </td>
-                </tr>
-              ))}
+              {accounts.map((account) => {
+                const active = isAccountActive(account);
+                return (
+                  <tr key={account.id}>
+                    <td className="px-6 py-4 whitespace-nowrap font-medium">
+                      {account.profileName || account.name || 'Unnamed'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-gray-500">
+                      {account.email || account.linkedinEmail}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <button
+                        onClick={() => handleToggle(account.id, active)}
+                        className={'px-3 py-1 rounded text-sm ' +
+                          (active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800')
+                        }
+                      >
+                        {active ? 'Active' : 'Inactive'}
+                      </button>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <button
+                        onClick={() => handleDelete(account.id)}
+                        className="text-red-600 hover:text-red-800"
+                      >
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -127,7 +139,7 @@ export default function Accounts() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
             <h2 className="text-xl font-bold mb-4">Add LinkedIn Account</h2>
-            
+
             {error && (
               <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
                 {error}
@@ -164,7 +176,6 @@ export default function Accounts() {
                   value={formData.linkedinPassword}
                   onChange={(e) => setFormData({ ...formData, linkedinPassword: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
-                  required
                 />
               </div>
 
