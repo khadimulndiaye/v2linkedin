@@ -6,18 +6,20 @@ export interface AuthRequest extends Request {
   userId?: string;
 }
 
-export const auth = (req: AuthRequest, res: Response, next: NextFunction) => {
-  const token = req.headers.authorization?.replace('Bearer ', '');
+export function auth(req: AuthRequest, res: Response, next: NextFunction): void {
+  const authHeader = req.headers?.authorization;
+  const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
 
   if (!token) {
-    return res.status(401).json({ error: 'No token provided' });
+    res.status(401).json({ error: 'No token provided' });
+    return;
   }
 
   try {
-    const decoded = jwt.verify(token, config.JWT_SECRET) as { userId: string };
-    req.userId = decoded.userId;
+    const payload = jwt.verify(token, config.JWT_SECRET) as { userId: string };
+    req.userId = payload.userId;
     next();
-  } catch (error) {
-    return res.status(401).json({ error: 'Invalid token' });
+  } catch {
+    res.status(401).json({ error: 'Invalid or expired token' });
   }
-};
+}
