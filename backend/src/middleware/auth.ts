@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { config } from '../config';
 
+// AuthRequest extends the full Express Request so body/params/query are all available
 export interface AuthRequest extends Request {
   userId?: string;
 }

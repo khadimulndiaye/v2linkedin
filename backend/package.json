@@ -1,30 +1,31 @@
 {
   "name": "linkedin-manager-backend",
   "version": "1.0.0",
+  "main": "dist/index.js",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "db:push": "prisma db push",
-    "db:generate": "prisma generate"
+    "dev": "ts-node-dev --respawn src/index.ts"
   },
   "dependencies": {
-    "@prisma/client": "^5.10.0",
+    "@prisma/client": "^5.0.0",
+    "@sparticuz/chromium": "^123.0.1",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
-    "express": "^4.18.2",
-    "jsonwebtoken": "^9.0.2",
-    "winston": "^3.11.0",
-    "zod": "^3.22.4"
-  },
-  "devDependencies": {
+    "dotenv": "^16.0.0",
+    "express": "^4.18.0",
+    "jsonwebtoken": "^9.0.0",
+    "puppeteer-core": "^22.0.0",
+    "zod": "^3.22.0",
     "@types/bcryptjs": "^2.4.6",
     "@types/cors": "^2.8.17",
     "@types/express": "^4.17.21",
     "@types/jsonwebtoken": "^9.0.5",
-    "@types/node": "^20.11.0",
-    "prisma": "^5.10.0",
-    "tsx": "^4.7.0",
-    "typescript": "^5.3.3"
+    "@types/node": "^20.0.0"
+  },
+  "devDependencies": {
+    "prisma": "^5.0.0",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.0.0"
   }
 }
