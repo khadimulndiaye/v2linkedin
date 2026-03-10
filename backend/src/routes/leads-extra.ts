@@ -13,13 +13,33 @@ interface ScrapedProfile {
   name: string; headline: string; company: string; location: string;
 }
 
+const VALID_SAME_SITE = new Set(['Strict', 'Lax', 'None']);
+
+function sanitizeCookies(cookiesJson: string): any[] {
+  const raw = JSON.parse(cookiesJson);
+  return raw.map((c: any) => {
+    const out: any = { ...c };
+    // Remove or fix sameSite — Puppeteer only accepts 'Strict'|'Lax'|'None'
+    if (out.sameSite !== undefined && !VALID_SAME_SITE.has(out.sameSite)) {
+      delete out.sameSite;
+    }
+    // Remove fields Puppeteer doesn't accept
+    delete out.hostOnly;
+    delete out.storeId;
+    delete out.id;
+    // Ensure required fields have the right types
+    if (typeof out.expires !== 'number') delete out.expires;
+    return out;
+  });
+}
+
 async function scrapeLinkedInProfile(cookiesJson: string, profileUrl: string): Promise<ScrapedProfile> {
   const { launchBrowser } = await import('../utils/browser');
   const browser = await launchBrowser();
   try {
     const page = await browser.newPage();
     await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
-    await page.setCookie(...JSON.parse(cookiesJson));
+    await page.setCookie(...sanitizeCookies(cookiesJson));
 
     // Use domcontentloaded (faster) with a longer timeout
     await page.goto(profileUrl.trim().replace(/\/$/, ''), {

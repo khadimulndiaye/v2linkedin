@@ -6,6 +6,18 @@ const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
 const delay = (min: number, max: number) =>
   new Promise((r) => setTimeout(r, (min + Math.random() * (max - min)) * 1000));
 
+
+const VALID_SAME_SITE = new Set(['Strict', 'Lax', 'None']);
+function sanitizeCookies(cookiesJson: string): any[] {
+  return JSON.parse(cookiesJson).map((c: any) => {
+    const out: any = { ...c };
+    if (out.sameSite !== undefined && !VALID_SAME_SITE.has(out.sameSite)) delete out.sameSite;
+    delete out.hostOnly; delete out.storeId; delete out.id;
+    if (typeof out.expires !== 'number') delete out.expires;
+    return out;
+  });
+}
+
 export class LinkedInBrowserService {
 
   /**
@@ -68,7 +80,7 @@ export class LinkedInBrowserService {
     try {
       const page = await browser.newPage();
       await page.setUserAgent(UA);
-      await page.setCookie(...JSON.parse(cookiesJson));
+      await page.setCookie(...sanitizeCookies(cookiesJson));
       await page.goto(profileUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
       await delay(2, 3);
       let connectBtn = await page.$('button[aria-label*="Connect"]');
@@ -99,7 +111,7 @@ export class LinkedInBrowserService {
     try {
       const page = await browser.newPage();
       await page.setUserAgent(UA);
-      await page.setCookie(...JSON.parse(cookiesJson));
+      await page.setCookie(...sanitizeCookies(cookiesJson));
       await page.goto(profileUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
       await delay(2, 3);
       const msgBtn = await page.$('button[aria-label*="Message"]');
@@ -118,7 +130,7 @@ export class LinkedInBrowserService {
     try {
       const page = await browser.newPage();
       await page.setUserAgent(UA);
-      await page.setCookie(...JSON.parse(cookiesJson));
+      await page.setCookie(...sanitizeCookies(cookiesJson));
       await page.goto(`${LINKEDIN_BASE}/feed/`, { waitUntil: 'domcontentloaded', timeout: 30000 });
       await delay(2, 3);
       const startBtn = await page.$('button[aria-label*="Start a post"]') ?? await page.$('.share-box-feed-entry__trigger');
