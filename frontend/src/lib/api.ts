@@ -43,6 +43,7 @@ export const accountsApi = {
     profileUrl?: string;
     connectionMode: 'manual' | 'oauth' | 'browser';
     password?: string;
+    cookiesJson?: string;
   }) => fetchAPI<Account>('/api/accounts', { method: 'POST', body: JSON.stringify(data) }),
   update: (id: string, data: {
     profileName?: string;
@@ -50,6 +51,7 @@ export const accountsApi = {
     status?: string;
     connectionMode?: 'manual' | 'oauth' | 'browser';
     password?: string;
+    cookiesJson?: string;
   }) => fetchAPI<Account>('/api/accounts/' + id, { method: 'PUT', body: JSON.stringify(data) }),
   delete: (id: string) =>
     fetchAPI<{ success: boolean }>('/api/accounts/' + id, { method: 'DELETE' }),
