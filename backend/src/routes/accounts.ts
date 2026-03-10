@@ -77,10 +77,13 @@ router.post('/', async (req: Request, res: Response) => {
   try {
     const data = createAccountSchema.parse(req.body);
 
+    // Allow same email in different connection modes (e.g. oauth + browser with cookies)
     const existing = await prisma.linkedInAccount.findFirst({
-      where: { email: data.email, userId: req.userId },
+      where: { email: data.email, userId: req.userId, connectionMode: data.connectionMode },
     });
-    if (existing) return res.status(400).json({ error: 'This LinkedIn email is already added' });
+    if (existing) return res.status(400).json({
+      error: `This email already has a ${data.connectionMode} account. Use a different connection mode or delete the existing one.`,
+    });
 
     if (data.connectionMode === 'browser') {
       if (!data.password && !data.cookiesJson) {
