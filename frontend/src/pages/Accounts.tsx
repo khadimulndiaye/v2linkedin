@@ -338,14 +338,14 @@ export default function Accounts() {
                     <button
                       type="button"
                       onClick={() => setFormData({ ...formData, showCookieInput: true, password: '' })}
-                      className={\`flex-1 py-2 font-medium transition-colors \${formData.showCookieInput ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}\`}
+                      className={formData.showCookieInput ? 'flex-1 py-2 font-medium transition-colors bg-blue-600 text-white' : 'flex-1 py-2 font-medium transition-colors bg-white text-gray-600 hover:bg-gray-50'}
                     >
                       🍪 Paste Cookies <span className="text-xs opacity-75">(recommended)</span>
                     </button>
                     <button
                       type="button"
                       onClick={() => setFormData({ ...formData, showCookieInput: false, cookiesJson: '' })}
-                      className={\`flex-1 py-2 font-medium transition-colors \${!formData.showCookieInput ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}\`}
+                      className={!formData.showCookieInput ? 'flex-1 py-2 font-medium transition-colors bg-blue-600 text-white' : 'flex-1 py-2 font-medium transition-colors bg-white text-gray-600 hover:bg-gray-50'}
                     >
                       🔑 Password
                     </button>
