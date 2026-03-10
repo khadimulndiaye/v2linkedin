@@ -2,14 +2,11 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { config } from '../config';
 
-// AuthRequest extends the full Express Request so body/params/query are all available
-export interface AuthRequest extends Request {
-  userId?: string;
-}
+// AuthRequest is just Request — userId is globally augmented via src/types/express.d.ts
+export type AuthRequest = Request;
 
-export function auth(req: AuthRequest, res: Response, next: NextFunction): void {
-  const authHeader = req.headers?.authorization;
-  const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
+export function auth(req: Request, res: Response, next: NextFunction): void {
+  const token = req.headers?.authorization?.replace('Bearer ', '') ?? null;
 
   if (!token) {
     res.status(401).json({ error: 'No token provided' });

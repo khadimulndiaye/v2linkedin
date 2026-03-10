@@ -1,7 +1,7 @@
-import { Router, Response } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { prisma } from '../services/prisma';
-import { auth, AuthRequest } from '../middleware/auth';
+import { auth } from '../middleware/auth';
 import { decrypt } from '../utils/encryption';
 import { linkedInBrowserService } from '../services/linkedin-browser';
 import { logger } from '../utils/logger';
@@ -46,7 +46,7 @@ async function scrapeLinkedInProfile(cookiesJson: string, profileUrl: string): P
 
 const scrapeSchema = z.object({ profileUrl: z.string().url(), accountId: z.string() });
 
-router.post('/scrape-profile', async (req: AuthRequest, res: Response) => {
+router.post('/scrape-profile', async (req: Request, res: Response) => {
   try {
     const { profileUrl, accountId } = scrapeSchema.parse(req.body);
     const account = await prisma.linkedInAccount.findFirst({ where: { id: accountId, userId: req.userId } });
@@ -72,7 +72,7 @@ const batchLeadSchema = z.object({
   })).min(1).max(200),
 });
 
-router.post('/batch', async (req: AuthRequest, res: Response) => {
+router.post('/batch', async (req: Request, res: Response) => {
   try {
     const { accountId, campaignId, leads } = batchLeadSchema.parse(req.body);
     const account = await prisma.linkedInAccount.findFirst({ where: { id: accountId, userId: req.userId } });

@@ -1,7 +1,7 @@
-import { Router, Request, Response } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
 import { prisma } from '../services/prisma';
-import { auth, AuthRequest } from '../middleware/auth';
+import { auth } from '../middleware/auth';
 import { linkedInOAuthService } from '../services/linkedin-oauth';
 import { config } from '../config';
 
@@ -9,7 +9,7 @@ const router = Router();
 const pendingStates = new Map<string, { userId: string; accountId: string; expiresAt: number }>();
 
 // GET /api/oauth/linkedin/url/:accountId
-router.get('/linkedin/url/:accountId', auth, async (req: AuthRequest, res: Response) => {
+router.get('/linkedin/url/:accountId', auth, async (req: Request, res: Response) => {
   try {
     if (!linkedInOAuthService.isConfigured()) {
       return res.status(400).json({
@@ -67,7 +67,7 @@ router.get('/linkedin/callback', async (req: Request, res: Response) => {
 });
 
 // POST /api/oauth/linkedin/disconnect/:accountId
-router.post('/linkedin/disconnect/:accountId', auth, async (req: AuthRequest, res: Response) => {
+router.post('/linkedin/disconnect/:accountId', auth, async (req: Request, res: Response) => {
   try {
     const account = await prisma.linkedInAccount.findFirst({
       where: { id: req.params.id, userId: req.userId },

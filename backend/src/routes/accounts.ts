@@ -1,7 +1,7 @@
-import { Router } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { prisma } from '../services/prisma';
-import { auth, AuthRequest } from '../middleware/auth';
+import { auth } from '../middleware/auth';
 import { encrypt, decrypt } from '../utils/encryption';
 import { config } from '../config';
 
@@ -26,7 +26,7 @@ const updateAccountSchema = z.object({
 });
 
 // GET /api/accounts
-router.get('/', async (req: AuthRequest, res) => {
+router.get('/', async (req: Request, res: Response) => {
   try {
     const accounts = await prisma.linkedInAccount.findMany({
       where: { userId: req.userId },
@@ -58,7 +58,7 @@ router.get('/', async (req: AuthRequest, res) => {
 });
 
 // GET /api/accounts/:id
-router.get('/:id', async (req: AuthRequest, res) => {
+router.get('/:id', async (req: Request, res: Response) => {
   try {
     const account = await prisma.linkedInAccount.findFirst({
       where: { id: req.params.id, userId: req.userId },
@@ -75,7 +75,7 @@ router.get('/:id', async (req: AuthRequest, res) => {
 });
 
 // POST /api/accounts
-router.post('/', async (req: AuthRequest, res) => {
+router.post('/', async (req: Request, res: Response) => {
   try {
     const data = createAccountSchema.parse(req.body);
 
@@ -126,7 +126,7 @@ router.post('/', async (req: AuthRequest, res) => {
 });
 
 // PUT /api/accounts/:id
-router.put('/:id', async (req: AuthRequest, res) => {
+router.put('/:id', async (req: Request, res: Response) => {
   try {
     const data = updateAccountSchema.parse(req.body);
 
@@ -162,7 +162,7 @@ router.put('/:id', async (req: AuthRequest, res) => {
 });
 
 // DELETE /api/accounts/:id
-router.delete('/:id', async (req: AuthRequest, res) => {
+router.delete('/:id', async (req: Request, res: Response) => {
   try {
     const result = await prisma.linkedInAccount.deleteMany({
       where: { id: req.params.id, userId: req.userId },

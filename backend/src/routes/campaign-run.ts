@@ -1,7 +1,7 @@
-import { Router } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { prisma } from '../services/prisma';
-import { auth, AuthRequest } from '../middleware/auth';
+import { auth } from '../middleware/auth';
 import { linkedInBrowserService } from '../services/linkedin-browser';
 import { linkedInOAuthService } from '../services/linkedin-oauth';
 import { decrypt } from '../utils/encryption';
@@ -48,7 +48,7 @@ async function refreshOAuthIfNeeded(account: any): Promise<string> {
 
 // ─── GET /api/campaigns/:id/leads — preview leads before running ──────────────
 
-router.get('/:id/leads', async (req: AuthRequest, res) => {
+router.get('/:id/leads', async (req: Request, res: Response) => {
   try {
     const campaign = await prisma.campaign.findFirst({
       where: { id: req.params.id, userId: req.userId },
@@ -95,7 +95,7 @@ const runSchema = z.object({
  *   message    → sendMessage (browser only)
  *   content    → publishPost (oauth or browser)
  */
-router.post('/:id/run', async (req: AuthRequest, res) => {
+router.post('/:id/run', async (req: Request, res: Response) => {
   // Set up SSE headers
   res.setHeader('Content-Type',  'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
@@ -255,7 +255,7 @@ router.post('/:id/run', async (req: AuthRequest, res) => {
 
 // ─── GET /api/campaigns/:id/status — quick stats ─────────────────────────────
 
-router.get('/:id/status', async (req: AuthRequest, res) => {
+router.get('/:id/status', async (req: Request, res: Response) => {
   try {
     const campaign = await prisma.campaign.findFirst({
       where: { id: req.params.id, userId: req.userId },

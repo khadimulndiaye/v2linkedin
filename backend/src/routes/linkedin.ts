@@ -1,7 +1,7 @@
-import { Router } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { prisma } from '../services/prisma';
-import { auth, AuthRequest } from '../middleware/auth';
+import { auth } from '../middleware/auth';
 import { linkedInOAuthService } from '../services/linkedin-oauth';
 import { linkedInBrowserService } from '../services/linkedin-browser';
 import { decrypt } from '../utils/encryption';
@@ -68,7 +68,7 @@ const publishPostSchema = z.object({
  * POST /api/linkedin/post
  * Publish immediately or schedule a post.
  */
-router.post('/post', async (req: AuthRequest, res) => {
+router.post('/post', async (req: Request, res: Response) => {
   try {
     const { content, accountId, scheduledAt } = publishPostSchema.parse(req.body);
     const account = await getAccountForUser(accountId, req.userId!);
@@ -124,7 +124,7 @@ router.post('/post', async (req: AuthRequest, res) => {
 
 // ─── Get Posts ────────────────────────────────────────────────────────────────
 
-router.get('/posts', async (req: AuthRequest, res) => {
+router.get('/posts', async (req: Request, res: Response) => {
   try {
     const { accountId } = req.query as { accountId?: string };
 
@@ -153,7 +153,7 @@ router.get('/posts', async (req: AuthRequest, res) => {
 
 // ─── Delete Post ──────────────────────────────────────────────────────────────
 
-router.delete('/posts/:id', async (req: AuthRequest, res) => {
+router.delete('/posts/:id', async (req: Request, res: Response) => {
   try {
     const post = await prisma.scheduledPost.findFirst({
       where: { id: req.params.id, account: { userId: req.userId } },
@@ -178,7 +178,7 @@ const connectSchema = z.object({
  * POST /api/linkedin/connect
  * Send a connection request to a lead (browser mode only).
  */
-router.post('/connect', async (req: AuthRequest, res) => {
+router.post('/connect', async (req: Request, res: Response) => {
   try {
     const { leadId, message } = connectSchema.parse(req.body);
 
@@ -222,7 +222,7 @@ const messageSchema = z.object({
  * POST /api/linkedin/message
  * Send a direct message to a lead (browser mode only).
  */
-router.post('/message', async (req: AuthRequest, res) => {
+router.post('/message', async (req: Request, res: Response) => {
   try {
     const { leadId, message } = messageSchema.parse(req.body);
 

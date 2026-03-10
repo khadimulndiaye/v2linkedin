@@ -1,49 +1,42 @@
-import { Router } from 'express';
+import { Router, Request, Response } from 'express';
 import { z } from 'zod';
-import { auth, AuthRequest } from '../middleware/auth';
+import { auth } from '../middleware/auth';
 import { aiService } from '../services/ai';
 
 const router = Router();
-
 router.use(auth);
 
-const generateContentSchema = z.object({
+const generateSchema = z.object({
   prompt: z.string().min(1),
-  type: z.enum(['post', 'comment', 'message']),
+  type:   z.enum(['post', 'comment', 'message']).default('post'),
 });
 
-const generateIdeasSchema = z.object({
+const ideasSchema = z.object({
   topic: z.string().min(1),
-  count: z.number().min(1).max(20).optional(),
+  count: z.number().min(1).max(10).default(5),
 });
 
-router.post('/generate', async (req: AuthRequest, res) => {
+// POST /api/ai/generate
+router.post('/generate', async (req: Request, res: Response) => {
   try {
-    const { prompt, type } = generateContentSchema.parse(req.body);
-    
+    const { prompt, type } = generateSchema.parse(req.body);
     const content = await aiService.generateContent(prompt, type);
-    
     res.json({ content });
-  } catch (error: any) {
-    if (error.name === 'ZodError') {
-      return res.status(400).json({ error: error.errors[0].message });
-    }
-    res.status(500).json({ error: 'Failed to generate content' });
+  } catch (err: any) {
+    if (err.name === 'ZodError') return res.status(400).json({ error: err.errors[0].message });
+    res.status(500).json({ error: err.message || 'AI generation failed' });
   }
 });
 
-router.post('/ideas', async (req: AuthRequest, res) => {
+// POST /api/ai/ideas
+router.post('/ideas', async (req: Request, res: Response) => {
   try {
-    const { topic, count } = generateIdeasSchema.parse(req.body);
-    
+    const { topic, count } = ideasSchema.parse(req.body);
     const ideas = await aiService.generatePostIdeas(topic, count);
-    
     res.json({ ideas });
-  } catch (error: any) {
-    if (error.name === 'ZodError') {
-      return res.status(400).json({ error: error.errors[0].message });
-    }
-    res.status(500).json({ error: 'Failed to generate ideas' });
+  } catch (err: any) {
+    if (err.name === 'ZodError') return res.status(400).json({ error: err.errors[0].message });
+    res.status(500).json({ error: err.message || 'AI generation failed' });
   }
 });
 

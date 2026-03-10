@@ -1,7 +1,7 @@
-import { Router, Response } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { prisma } from '../services/prisma';
-import { auth, AuthRequest } from '../middleware/auth';
+import { auth } from '../middleware/auth';
 
 const router = Router();
 router.use(auth);
@@ -27,7 +27,7 @@ const updateLeadSchema = z.object({
 });
 
 // GET /api/leads
-router.get('/', async (req: AuthRequest, res: Response) => {
+router.get('/', async (req: Request, res: Response) => {
   try {
     const { search, status, campaignId, page = '1', limit = '50' } = req.query as Record<string, string>;
     const skip = (parseInt(page) - 1) * parseInt(limit);
@@ -62,7 +62,7 @@ router.get('/', async (req: AuthRequest, res: Response) => {
 });
 
 // GET /api/leads/:id
-router.get('/:id', async (req: AuthRequest, res: Response) => {
+router.get('/:id', async (req: Request, res: Response) => {
   try {
     const lead = await prisma.lead.findFirst({
       where: { id: req.params.id, userId: req.userId },
@@ -76,7 +76,7 @@ router.get('/:id', async (req: AuthRequest, res: Response) => {
 });
 
 // POST /api/leads
-router.post('/', async (req: AuthRequest, res: Response) => {
+router.post('/', async (req: Request, res: Response) => {
   try {
     const data = createLeadSchema.parse(req.body);
 
@@ -110,7 +110,7 @@ router.post('/', async (req: AuthRequest, res: Response) => {
 });
 
 // PUT /api/leads/:id
-router.put('/:id', async (req: AuthRequest, res: Response) => {
+router.put('/:id', async (req: Request, res: Response) => {
   try {
     const data = updateLeadSchema.parse(req.body);
     const result = await prisma.lead.updateMany({
@@ -127,7 +127,7 @@ router.put('/:id', async (req: AuthRequest, res: Response) => {
 });
 
 // DELETE /api/leads/:id
-router.delete('/:id', async (req: AuthRequest, res: Response) => {
+router.delete('/:id', async (req: Request, res: Response) => {
   try {
     const result = await prisma.lead.deleteMany({ where: { id: req.params.id, userId: req.userId } });
     if (result.count === 0) return res.status(404).json({ error: 'Lead not found' });
