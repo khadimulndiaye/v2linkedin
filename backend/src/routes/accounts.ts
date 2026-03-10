@@ -1,4 +1,4 @@
-import { Router, Request, Response, NextFunction } from 'express';
+import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import { prisma } from '../services/prisma';
 import { auth } from '../middleware/auth';
@@ -13,7 +13,8 @@ const createAccountSchema = z.object({
   profileName:    z.string().optional(),
   profileUrl:     z.string().url().optional().or(z.literal('')),
   connectionMode: z.enum(['manual', 'oauth', 'browser']).default('manual'),
-  password:       z.string().optional(), // only for browser mode
+  password:       z.string().optional(),
+  cookiesJson:    z.string().optional(), // raw JSON cookies from browser
 });
 
 const updateAccountSchema = z.object({
@@ -22,6 +23,7 @@ const updateAccountSchema = z.object({
   status:         z.enum(['active', 'inactive']).optional(),
   connectionMode: z.enum(['manual', 'oauth', 'browser']).optional(),
   password:       z.string().optional(),
+  cookiesJson:    z.string().optional(),
   dailyLimits:    z.object({}).passthrough().optional(),
 });
 
@@ -35,19 +37,17 @@ router.get('/', async (req: Request, res: Response) => {
         id: true, email: true, profileName: true, profileUrl: true,
         status: true, connectionMode: true, dailyLimits: true,
         createdAt: true, updatedAt: true,
-        // Never send encrypted password or tokens to frontend
         oauthLinkedInId: true, oauthExpiresAt: true,
         _count: { select: { campaigns: true, leads: true } },
       },
     });
 
-    // Add a derived `isConnected` flag
     const enriched = accounts.map((a) => ({
       ...a,
       isConnected: a.connectionMode === 'oauth'
         ? !!(a.oauthLinkedInId && a.oauthExpiresAt && new Date(a.oauthExpiresAt) > new Date())
         : a.connectionMode === 'browser'
-        ? true  // assume connected if browser mode is set (password was validated at save)
+        ? true
         : false,
     }));
 
@@ -65,9 +65,7 @@ router.get('/:id', async (req: Request, res: Response) => {
       include: { _count: { select: { campaigns: true, leads: true } } },
     });
     if (!account) return res.status(404).json({ error: 'Account not found' });
-
-    // Strip sensitive fields
-    const { passwordEncrypted, oauthAccessToken, oauthRefreshToken, ...safe } = account;
+    const { passwordEncrypted, cookiesEncrypted, oauthAccessToken, oauthRefreshToken, ...safe } = account as any;
     res.json(safe);
   } catch {
     res.status(500).json({ error: 'Failed to fetch account' });
@@ -79,48 +77,45 @@ router.post('/', async (req: Request, res: Response) => {
   try {
     const data = createAccountSchema.parse(req.body);
 
-    // Check for duplicate email under this user
     const existing = await prisma.linkedInAccount.findFirst({
       where: { email: data.email, userId: req.userId },
     });
-    if (existing) {
-      return res.status(400).json({ error: 'This LinkedIn email is already added to your account' });
-    }
+    if (existing) return res.status(400).json({ error: 'This LinkedIn email is already added' });
 
-    // Validate browser mode requires password
     if (data.connectionMode === 'browser') {
-      if (!data.password) {
-        return res.status(400).json({ error: 'Password is required for browser automation mode' });
+      if (!data.password && !data.cookiesJson) {
+        return res.status(400).json({ error: 'Browser mode requires either a password or pasted cookies' });
       }
       if (!config.ENCRYPTION_KEY) {
-        return res.status(400).json({
-          error: 'Server is missing ENCRYPTION_KEY environment variable. Contact your administrator.',
-        });
+        return res.status(400).json({ error: 'Server is missing ENCRYPTION_KEY' });
+      }
+    }
+
+    // Validate cookies JSON if provided
+    if (data.cookiesJson) {
+      try { JSON.parse(data.cookiesJson); } catch {
+        return res.status(400).json({ error: 'Cookies JSON is not valid JSON' });
       }
     }
 
     const passwordEncrypted = data.connectionMode === 'browser' && data.password
-      ? encrypt(data.password)
-      : null;
+      ? encrypt(data.password) : null;
+    const cookiesEncrypted = data.cookiesJson ? encrypt(data.cookiesJson) : null;
 
-    const account = await prisma.linkedInAccount.create({
+    const account = await (prisma.linkedInAccount.create as any)({
       data: {
-        userId:            req.userId!,
-        email:             data.email,
-        profileName:       data.profileName ?? null,
-        profileUrl:        data.profileUrl  ?? null,
-        connectionMode:    data.connectionMode,
-        passwordEncrypted,
-        status:            'active',
+        userId: req.userId!, email: data.email,
+        profileName: data.profileName ?? null, profileUrl: data.profileUrl ?? null,
+        connectionMode: data.connectionMode,
+        passwordEncrypted, cookiesEncrypted,
+        status: 'active',
       },
     });
 
-    const { passwordEncrypted: _pw, oauthAccessToken: _at, oauthRefreshToken: _rt, ...safe } = account;
+    const { passwordEncrypted: _pw, cookiesEncrypted: _ck, oauthAccessToken: _at, oauthRefreshToken: _rt, ...safe } = account;
     res.status(201).json(safe);
   } catch (error: any) {
-    if (error.name === 'ZodError') {
-      return res.status(400).json({ error: error.errors[0].message });
-    }
+    if (error.name === 'ZodError') return res.status(400).json({ error: error.errors[0].message });
     res.status(500).json({ error: 'Failed to create account' });
   }
 });
@@ -135,11 +130,16 @@ router.put('/:id', async (req: Request, res: Response) => {
     });
     if (!existing) return res.status(404).json({ error: 'Account not found' });
 
-    const passwordEncrypted = data.password
-      ? encrypt(data.password)
-      : undefined;
+    if (data.cookiesJson) {
+      try { JSON.parse(data.cookiesJson); } catch {
+        return res.status(400).json({ error: 'Cookies JSON is not valid JSON' });
+      }
+    }
 
-    const result = await prisma.linkedInAccount.update({
+    const passwordEncrypted = data.password ? encrypt(data.password) : undefined;
+    const cookiesEncrypted  = data.cookiesJson ? encrypt(data.cookiesJson) : undefined;
+
+    const result = await (prisma.linkedInAccount.update as any)({
       where: { id: req.params.id },
       data: {
         ...(data.profileName    !== undefined && { profileName:    data.profileName }),
@@ -147,16 +147,15 @@ router.put('/:id', async (req: Request, res: Response) => {
         ...(data.status         !== undefined && { status:         data.status }),
         ...(data.connectionMode !== undefined && { connectionMode: data.connectionMode }),
         ...(passwordEncrypted   !== undefined && { passwordEncrypted }),
+        ...(cookiesEncrypted    !== undefined && { cookiesEncrypted }),
         ...(data.dailyLimits    !== undefined && { dailyLimits:    data.dailyLimits }),
       },
     });
 
-    const { passwordEncrypted: _pw, oauthAccessToken: _at, oauthRefreshToken: _rt, ...safe } = result;
+    const { passwordEncrypted: _pw, cookiesEncrypted: _ck, oauthAccessToken: _at, oauthRefreshToken: _rt, ...safe } = result;
     res.json(safe);
   } catch (error: any) {
-    if (error.name === 'ZodError') {
-      return res.status(400).json({ error: error.errors[0].message });
-    }
+    if (error.name === 'ZodError') return res.status(400).json({ error: error.errors[0].message });
     res.status(500).json({ error: 'Failed to update account' });
   }
 });
@@ -168,13 +167,22 @@ router.delete('/:id', async (req: Request, res: Response) => {
       where: { id: req.params.id, userId: req.userId },
     });
     if (result.count === 0) return res.status(404).json({ error: 'Account not found' });
-    res.json({ success: true, message: 'Account deleted' });
+    res.json({ success: true });
   } catch {
     res.status(500).json({ error: 'Failed to delete account' });
   }
 });
 
-// GET /api/accounts/:id/decrypt-password  — backend only, for automation tasks
+// Helper for automation services
+export async function getDecryptedCookies(accountId: string): Promise<string | null> {
+  const account = await (prisma.linkedInAccount.findUnique as any)({
+    where: { id: accountId },
+    select: { cookiesEncrypted: true, passwordEncrypted: true },
+  });
+  if (account?.cookiesEncrypted) return decrypt(account.cookiesEncrypted);
+  return null;
+}
+
 export async function getDecryptedPassword(accountId: string): Promise<string | null> {
   const account = await prisma.linkedInAccount.findUnique({
     where: { id: accountId },

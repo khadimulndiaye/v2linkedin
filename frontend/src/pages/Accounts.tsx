@@ -51,7 +51,7 @@ export default function Accounts() {
   const [formData, setFormData] = useState({
     email: '', profileName: '', profileUrl: '',
     connectionMode: 'manual' as ConnectionMode,
-    password: '', showPassword: false,
+    password: '', showPassword: false, cookiesJson: '', showCookieInput: false,
   });
 
   const [searchParams, setSearchParams] = useSearchParams();
@@ -87,7 +87,8 @@ export default function Accounts() {
         profileName:    formData.profileName  || undefined,
         profileUrl:     formData.profileUrl   || undefined,
         connectionMode: formData.connectionMode,
-        password:       formData.connectionMode === 'browser' ? formData.password : undefined,
+        password:       formData.connectionMode === 'browser' ? formData.password || undefined : undefined,
+        cookiesJson:    formData.connectionMode === 'browser' ? formData.cookiesJson || undefined : undefined,
       });
       setShowModal(false);
       resetForm();
@@ -132,7 +133,7 @@ export default function Accounts() {
   };
 
   const resetForm = () => {
-    setFormData({ email: '', profileName: '', profileUrl: '', connectionMode: 'manual', password: '', showPassword: false });
+    setFormData({ email: '', profileName: '', profileUrl: '', connectionMode: 'manual', password: '', showPassword: false, cookiesJson: '', showCookieInput: false });
     setError('');
   };
 
@@ -329,35 +330,71 @@ export default function Accounts() {
                 </div>
               )}
 
-              {/* Browser password field */}
+              {/* Browser auth — tabs: cookies (recommended) vs password */}
               {formData.connectionMode === 'browser' && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    LinkedIn Password <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <input
-                      type={formData.showPassword ? 'text' : 'password'}
-                      value={formData.password}
-                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                      className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                      placeholder="Your LinkedIn password"
-                      required
-                    />
+                <div className="space-y-3">
+                  {/* Tab switcher */}
+                  <div className="flex rounded-lg border border-gray-200 overflow-hidden text-sm">
                     <button
                       type="button"
-                      onClick={() => setFormData({ ...formData, showPassword: !formData.showPassword })}
-                      className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600 text-sm"
+                      onClick={() => setFormData({ ...formData, showCookieInput: true, password: '' })}
+                      className={\`flex-1 py-2 font-medium transition-colors \${formData.showCookieInput ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}\`}
                     >
-                      {formData.showPassword ? '🙈' : '👁️'}
+                      🍪 Paste Cookies <span className="text-xs opacity-75">(recommended)</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFormData({ ...formData, showCookieInput: false, cookiesJson: '' })}
+                      className={\`flex-1 py-2 font-medium transition-colors \${!formData.showCookieInput ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}\`}
+                    >
+                      🔑 Password
                     </button>
                   </div>
-                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mt-2 text-xs text-amber-800">
-                    <p className="font-semibold">🔒 Security note:</p>
-                    <p className="mt-0.5">Password is encrypted with AES-256-GCM before storage. Requires <code>ENCRYPTION_KEY</code> env variable on server.</p>
-                    <p className="mt-1 font-semibold">⚠️ ToS note:</p>
-                    <p className="mt-0.5">Browser automation violates LinkedIn's Terms of Service. Use at your own risk with reasonable daily limits.</p>
-                  </div>
+
+                  {formData.showCookieInput ? (
+                    <div>
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-2 text-xs text-blue-800">
+                        <p className="font-semibold mb-1">How to get your cookies:</p>
+                        <ol className="list-decimal ml-4 space-y-0.5">
+                          <li>Install <strong>Cookie-Editor</strong> Chrome extension</li>
+                          <li>Go to <strong>linkedin.com</strong> (while logged in)</li>
+                          <li>Click Cookie-Editor → <strong>Export → Export as JSON</strong></li>
+                          <li>Paste the JSON below</li>
+                        </ol>
+                        <p className="mt-1.5">✅ This avoids 2FA phone verification entirely.</p>
+                      </div>
+                      <textarea
+                        value={formData.cookiesJson}
+                        onChange={(e) => setFormData({ ...formData, cookiesJson: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none h-28"
+                        placeholder='[{"name":"li_at","value":"AQE...","domain":".linkedin.com",...}]'
+                        required={formData.showCookieInput}
+                      />
+                    </div>
+                  ) : (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        LinkedIn Password <span className="text-red-500">*</span>
+                      </label>
+                      <div className="relative">
+                        <input
+                          type={formData.showPassword ? 'text' : 'password'}
+                          value={formData.password}
+                          onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                          className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                          placeholder="Your LinkedIn password"
+                          required={!formData.showCookieInput}
+                        />
+                        <button type="button" onClick={() => setFormData({ ...formData, showPassword: !formData.showPassword })}
+                          className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600 text-sm">
+                          {formData.showPassword ? '🙈' : '👁️'}
+                        </button>
+                      </div>
+                      <p className="text-xs text-amber-700 mt-1">⚠️ May trigger phone verification on first run. Use cookies tab to avoid this.</p>
+                    </div>
+                  )}
+
+                  <p className="text-xs text-gray-400">🔒 Credentials encrypted with AES-256-GCM before storage.</p>
                 </div>
               )}
 

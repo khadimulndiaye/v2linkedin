@@ -42,6 +42,7 @@ model LinkedInAccount {
 
   // Browser automation fields (Option B)
   passwordEncrypted String?
+  cookiesEncrypted  String?  // AES-encrypted JSON cookies (paste from browser)
 
   dailyLimits  Json     @default("{}")
   createdAt    DateTime @default(now())
